@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, Response
 from app import db
 from app.models.goal import Goal
+from app.models.task import Task
 
 goals_bp = Blueprint("goals_bp", __name__, url_prefix="/goals")
 
@@ -71,3 +72,48 @@ def delete_goal(goal_id):
     db.session.commit()
 
     return Response(status=204, mimetype="application/json")
+
+@goals_bp.post("/<int:goal_id>/tasks")
+def add_tasks_to_goal(goal_id):
+    goal = validate_goal(goal_id)
+
+    if not goal:
+        return jsonify({"message": "Goal not found"}), 404
+
+    request_body = request.get_json()
+
+    if not request_body or "task_ids" not in request_body:
+        return jsonify({"details": "Invalid data"}), 400
+
+    task_ids = request_body["task_ids"]
+    tasks = []
+
+    for task_id in task_ids:
+        task = db.session.get(Task, task_id)
+
+        if not task:
+            return jsonify({"message": "Task not found"}), 404
+
+        tasks.append(task)
+
+    goal.tasks = tasks
+    db.session.commit()
+
+    return jsonify({
+        "id": goal.id,
+        "task_ids": [task.id for task in goal.tasks]
+    }), 200
+
+
+@goals_bp.get("/<int:goal_id>/tasks")
+def get_tasks_for_goal(goal_id):
+    goal = validate_goal(goal_id)
+
+    if not goal:
+        return jsonify({"message": "Goal not found"}), 404
+
+    return jsonify({
+        "id": goal.id,
+        "title": goal.title,
+        "tasks": [task.to_dict() for task in goal.tasks]
+    }), 200
