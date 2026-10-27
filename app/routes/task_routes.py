@@ -33,8 +33,23 @@ def create_task():
 
 @tasks_bp.get("")
 def get_tasks():
-    tasks = db.session.execute(db.select(Task)).scalars().all()
-    return jsonify([task.to_dict() for task in tasks]), 200
+    query = db.select(Task)
+
+    sort_param = request.args.get("sort")
+
+    if sort_param == "asc":
+        query = query.order_by(Task.title.asc())
+
+    elif sort_param == "desc":
+        query = query.order_by(Task.title.desc())
+
+    tasks = db.session.scalars(query).all()
+
+    tasks_response = []
+    for task in tasks:
+        tasks_response.append(task.to_dict())
+
+    return tasks_response, 200
 
 
 @tasks_bp.get("/<int:task_id>")
